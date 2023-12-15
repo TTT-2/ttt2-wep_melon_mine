@@ -21,34 +21,42 @@ function ENT:SetupDataTables()
 	self:NetworkVar("String", 2, "OwnerTeam")
 end
 
-
-local BoomPlayer
-
 function ENT:Initialize()
 	if SERVER then
 		self:SetModel("models/props_junk/watermelon01.mdl")
 		self:SetColor(Color(150, 100, 0, 255))
 		self:PhysicsInit(SOLID_VPHYSICS)
 		self:DrawShadow(false)
-		self:SetCollisionGroup( COLLISION_GROUP_WEAPON )
+		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 		self:SetTrigger(true)
 
 		self.StartupDelay = CurTime() + 3
 		self:SetHealth(150)
 		self:WeldToGround(true)
 		self.fingerprints = {}
-		if not self:GetDmg() then self:SetDmg(200) end
+
+		if not self:GetDmg() then
+			self:SetDmg(200)
+		end
+
+		radarVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
 	end
 
 	if CLIENT then
 		self.DrawText = false
 		self.Text = ""
+
 		local rand = math.random(1,3)
-		if rand == 1 then self.Text = "O_O"
-		elseif rand == 2 then self.Text = "O.o"
-		else self.Text = "-.-" end
+		if rand == 1 then
+			self.Text = "O_O"
+		elseif rand == 2 then
+			self.Text = "O.o"
+		else
+			self.Text = "-.-"
+		end
+
 		timer.Simple(3, function()
-			if IsValid( self ) then
+			if IsValid(self) then
 				self.DrawText = true
 			end
 		end)
@@ -127,90 +135,70 @@ function ENT:WeldToGround(state)
 end
 
 if SERVER then
+	local zapsound = Sound("npc/assassin/ball_zap1.wav")
+
 	function ENT:Think()
 		if not self.StartupDelay or self.StartupDelay >= CurTime() then return end
 
-		local e = ents.FindInSphere(self:GetPos(), 150)
+		local foundEnts = ents.FindInSphere(self:GetPos(), 150)
 
-		for a, pl in pairs(e) do
-			-- Doesn't detonate for traitors
-			if (IsValid(pl) and pl:IsPlayer()) then
-				if pl:GetTeam() == self:GetOwnerTeam() then return end
-				if pl.IsGhost and pl:IsGhost() then return end
+		for i = 1, #foundEnts do
+			local ply = foundEnts[i]
 
-				local rags = ents.FindByClass("prop_ragdoll")
-				local trace = {}
+			if not IsValid(ply) or not ply:IsPlayer()
+				or ply:GetTeam() == self:GetOwner():GetTeam()
+				or (isfunction(ply.IsGhost) and ply:IsGhost())
+			then continue end
 
-				table.insert(rags, self)
+			local rags = ents.FindByClass("prop_ragdoll")
+			local trace = {}
 
-				trace.start = self:GetPos()
-				trace.endpos = pl:GetPos() + Vector(0,0,60)
-				trace.filter = rags
+			table.insert(rags, self)
 
-				local tr = util.TraceLine(trace)
+			trace.start = self:GetPos()
+			trace.endpos = ply:GetPos() + Vector(0, 0, 60)
+			trace.filter = rags
 
-				-- Checks if there's a clear view of the player
-				if IsValid(tr.Entity) and tr.Entity == pl then
-					BoomPlayer = pl
-					timer.Create("beep", 0.1, 8, function()
-						self:EmitSound("weapons/c4/c4_beep1.wav")
-					end)
-					timer.Simple(1, function()
-						self:Explode()
-					end)
-					function self.Think()
+			local tr = util.TraceLine(trace)
 
-					end
-				end
-			elseif pl:GetClass() == "ttt_chicken" then
-				local rags = ents.FindByClass("prop_ragdoll")
-				local trace = {}
+			-- Checks if there's a clear view of the player, the melon can be hidden beneath a ragdoll
+			if IsValid(tr.Entity) and tr.Entity == ply then
+				timer.Create("beep", 0.1, 8, function()
+					if not IsValid(self) then return end
 
-				table.insert(rags, self)
+					self:EmitSound("weapons/c4/c4_beep1.wav")
+				end)
 
-				trace.start = self:GetPos()
-				trace.endpos = pl:GetPos() + Vector(0,0,60)
-				trace.filter = rags
+				timer.Simple(1, function()
+					if not IsValid(self) then return end
 
-				local tr = util.TraceLine(trace)
+					self:Explode(ply)
+				end)
 
-				if IsValid(tr.Entity) and tr.Entity == pl then
-					BoomPlayer = pl
-					timer.Create("beep", 0.1, 8, function()
-						self:EmitSound("weapons/c4/c4_beep1.wav")
-					end)
+				function self.Think()
 
-					timer.Simple(1, function()
-						self:Explode()
-					end)
-
-					function self.Think()
-
-					end
 				end
 			end
 		end
 	end
-end
 
-if SERVER then
-	function ENT:Explode()
+	function ENT:Explode(plyTrigger)
 		self:SetNoDraw(true)
 		self:SetSolid(SOLID_NONE)
 
 		local pos = self:GetPos()
 
-		if self:GetPos().z < (BoomPlayer:GetPos().z + 50)  then
+		if self:GetPos().z < plyTrigger:GetPos().z + 50 then
 			pos.z = pos.z + 30
 		end
 
-		local dmgowner = self:GetOwner()
-		dmgowner = IsValid(dmgowner) and dmgowner or self
+		local dmgOwner = self:GetOwner()
+		dmgOwner = IsValid(dmgOwner) and dmgOwner or self
 
 		local r_outer = 240
 
 		-- explosion damage
-		util.BlastDamage(self, dmgowner, pos, r_outer, self:GetDmg())
+		util.BlastDamage(self, dmgOwner, pos, r_outer, self:GetDmg())
 
 		sound.Play( "explode_4", self:GetPos(), 130, 100 )
 
@@ -235,19 +223,19 @@ if SERVER then
 		phexp:Spawn()
 		phexp:Fire("Explode", "", 0)
 
+		radarVision.RemoveEntity(self)
+
 		self:Remove()
 	end
 
-	local zapsound = Sound("npc/assassin/ball_zap1.wav")
-
-	function ENT:OnTakeDamage( dmginfo )
+	function ENT:OnTakeDamage(dmginfo)
 		if dmginfo:GetAttacker() == self:GetOwner() then return end
 
 		self:TakePhysicsDamage(dmginfo)
 
 		self:SetHealth(self:Health() - dmginfo:GetDamage())
 
-		if self:Health() < 0 then
+		if self:Health() <= 0 then
 			self:Remove()
 
 			local effect = EffectData()
@@ -257,7 +245,7 @@ if SERVER then
 			sound.Play(zapsound, self:GetPos())
 
 			if IsValid(self:GetOwner()) then
-				TraitorMsg(self:GetOwner(), "YOUR MINE HAS BEEN DESTROYED!")
+				LANG.Msg(self:GetOwner(), "weapon_melonmine_destroyed", nil, MSG_MSTACK_WARN)
 			end
 		end
 	end
@@ -267,35 +255,39 @@ end
 -- in the radius, whereas there exist only ~16 players. Hence it is more
 -- efficient to cycle through all those players and do a Lua-side distance
 -- check.
-function ENT:SphereDamage(dmgowner, center, radius)
+function ENT:SphereDamage(dmgOwner, center, radius)
 	local r = radius ^ 2 -- square so we can compare with dotproduct directly
 
 	-- pre-declare to avoid realloc
 	local d = 0.0
 	local diff = nil
 	local dmg = 0
-	for _, ent in pairs(player.GetAll()) do
-		if IsValid(ent) and ent:Team() == TEAM_TERROR then
 
-			-- dot of the difference with itself is distance squared
-			diff = center - ent:GetPos()
-			d = diff:Dot(diff)
+	local plys = player.GetAll()
 
-			if d < r then
-				-- deadly up to a certain range, then a quick falloff within 100 units
-				d = math.max(0, math.sqrt(d) - 490)
-				dmg = -0.01 * (d^2) + 125
+	for i = 1, #plys do
+		local ply = plys[i]
 
-				local dmginfo = DamageInfo()
-				dmginfo:SetDamage(dmg)
-				dmginfo:SetAttacker(dmgowner)
-				dmginfo:SetInflictor(self)
-				dmginfo:SetDamageType(DMG_BLAST)
-				dmginfo:SetDamageForce(center - ent:GetPos())
-				dmginfo:SetDamagePosition(ent:GetPos())
+		if not IsValid(ply) or not ply:IsTerror() then continue end
 
-				ent:TakeDamageInfo(dmginfo)
-			end
+		-- dot of the difference with itself is distance squared
+		diff = center - ply:GetPos()
+		d = diff:Dot(diff)
+
+		if d < r then
+			-- deadly up to a certain range, then a quick falloff within 100 units
+			d = math.max(0, math.sqrt(d) - 490)
+			dmg = -0.01 * (d ^ 2) + 125
+
+			local dmginfo = DamageInfo()
+			dmginfo:SetDamage(dmg)
+			dmginfo:SetAttacker(dmgOwner)
+			dmginfo:SetInflictor(self)
+			dmginfo:SetDamageType(DMG_BLAST)
+			dmginfo:SetDamageForce(center - ply:GetPos())
+			dmginfo:SetDamagePosition(ply:GetPos())
+
+			ply:TakeDamageInfo(dmginfo)
 		end
 	end
 end
@@ -306,4 +298,56 @@ function ENT:WallPlant(hitpos, forward)
 	end
 
 	self:SetAngles(forward:Angle() + Angle(-90, 0, 180))
+end
+
+if CLIENT then
+	local TryT = LANG.TryTranslation
+	local ParT = LANG.GetParamTranslation
+
+	-- handle looking at C4
+	hook.Add("TTTRenderEntityInfo", "HUDDrawTargetIDMelonmine", function(tData)
+		local client = LocalPlayer()
+		local ent = tData:GetEntity()
+
+		if not client:IsTerror() or not IsValid(ent) or tData:GetEntityDistance() > 100 or ent:GetClass() ~= "ttt_melonmine"
+			or client:GetTeam() ~= ent:GetOwner():GetTeam()
+		then return end
+
+		-- enable targetID rendering
+		tData:EnableText()
+		tData:EnableOutline()
+		tData:SetOutlineColor(client:GetRoleColor())
+
+		tData:SetTitle(TryT(ent.PrintName))
+
+		if ent:GetOwner() == client then
+			tData:SetKeyBinding("+use")
+			tData:SetSubtitle(ParT("target_pickup", {usekey = Key("+use", "USE")}))
+		else
+			tData:AddIcon(roles.DETECTIVE.iconMaterial)
+			tData:SetSubtitle(TryT("target_pickup_disabled"))
+		end
+	end)
+
+	hook.Add("TTT2RenderRadarInfo", "HUDDrawRadarMelonMine", function(rData)
+		local client = LocalPlayer()
+		local ent = rData:GetEntity()
+
+		if not client:IsTerror() or not IsValid(ent) or ent:GetClass() ~= "ttt_melonmine" then return end
+
+		local owner = ent:GetOwner()
+		local nick = IsValid(owner) and owner:Nick() or "---"
+
+		local distance = math.Round(util.HammerUnitsToMeters(rData:GetEntityDistance()), 1)
+
+		rData:EnableText()
+
+		--rData:AddIcon(materialC4)
+		rData:SetTitle(TryT(ent.PrintName))
+
+		rData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_owner", {owner = nick}))
+		rData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_distance", {distance = distance}))
+
+		rData:SetCollapsedLine(ParT("weapon_melonmine_bombvision_collapsed", {distance = distance}))
+	end)
 end
