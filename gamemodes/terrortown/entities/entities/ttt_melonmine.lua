@@ -304,6 +304,8 @@ if CLIENT then
 	local TryT = LANG.TryTranslation
 	local ParT = LANG.GetParamTranslation
 
+	local materialMelonmine = Material("vgui/ttt/radar/melonmine")
+
 	-- handle looking at C4
 	hook.Add("TTTRenderEntityInfo", "HUDDrawTargetIDMelonmine", function(tData)
 		local client = LocalPlayer()
@@ -329,25 +331,25 @@ if CLIENT then
 		end
 	end)
 
-	hook.Add("TTT2RenderRadarInfo", "HUDDrawRadarMelonMine", function(rData)
+	hook.Add("TTT2RenderRadarInfo", "HUDDrawMarkerVisionMelonMine", function(mvData)
 		local client = LocalPlayer()
-		local ent = rData:GetEntity()
+		local ent = mvData:GetEntity()
 
 		if not client:IsTerror() or not IsValid(ent) or ent:GetClass() ~= "ttt_melonmine" then return end
 
 		local owner = ent:GetOwner()
 		local nick = IsValid(owner) and owner:Nick() or "---"
 
-		local distance = math.Round(util.HammerUnitsToMeters(rData:GetEntityDistance()), 1)
+		local distance = math.Round(util.HammerUnitsToMeters(mvData:GetEntityDistance()), 1)
 
-		rData:EnableText()
+		mvData:EnableText()
 
-		--rData:AddIcon(materialC4)
-		rData:SetTitle(TryT(ent.PrintName))
+		mvData:AddIcon(materialMelonmine)
+		mvData:SetTitle(TryT(ent.PrintName))
 
-		rData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_owner", {owner = nick}))
-		rData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_distance", {distance = distance}))
+		mvData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_owner", {owner = nick}))
+		mvData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_distance", {distance = distance}))
 
-		rData:SetCollapsedLine(ParT("weapon_melonmine_bombvision_collapsed", {distance = distance}))
+		mvData:AddDescriptionLine(TryT("bombvision_visible_for_" .. radarVision.GetVisibleFor(ent)), COLOR_SLATEGRAY)
 	end)
 end
