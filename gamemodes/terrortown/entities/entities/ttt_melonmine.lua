@@ -39,7 +39,11 @@ function ENT:Initialize()
 			self:SetDmg(200)
 		end
 
-		radarVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
+		timer.Simple(0, function()
+			if not IsValid(self) then return end
+
+			markerVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
+		end)
 	end
 
 	if CLIENT then
@@ -223,7 +227,7 @@ if SERVER then
 		phexp:Spawn()
 		phexp:Fire("Explode", "", 0)
 
-		radarVision.RemoveEntity(self)
+		markerVision.RemoveEntity(self)
 
 		self:Remove()
 	end
@@ -304,7 +308,7 @@ if CLIENT then
 	local TryT = LANG.TryTranslation
 	local ParT = LANG.GetParamTranslation
 
-	local materialMelonmine = Material("vgui/ttt/radar/melonmine")
+	local materialMelonmine = Material("vgui/ttt/marker_vision/melonmine")
 
 	-- handle looking at C4
 	hook.Add("TTTRenderEntityInfo", "HUDDrawTargetIDMelonmine", function(tData)
@@ -331,7 +335,7 @@ if CLIENT then
 		end
 	end)
 
-	hook.Add("TTT2RenderRadarInfo", "HUDDrawMarkerVisionMelonMine", function(mvData)
+	hook.Add("TTT2RenderMarkerVisionInfo", "HUDDrawMarkerVisionMelonMine", function(mvData)
 		local client = LocalPlayer()
 		local ent = mvData:GetEntity()
 
@@ -347,9 +351,9 @@ if CLIENT then
 		mvData:AddIcon(materialMelonmine)
 		mvData:SetTitle(TryT(ent.PrintName))
 
-		mvData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_owner", {owner = nick}))
-		mvData:AddDescriptionLine(ParT("weapon_melonmine_bombvision_distance", {distance = distance}))
+		mvData:AddDescriptionLine(ParT("marker_vision_owner", {owner = nick}))
+		mvData:AddDescriptionLine(ParT("marker_vision_distance", {distance = distance}))
 
-		mvData:AddDescriptionLine(TryT("bombvision_visible_for_" .. radarVision.GetVisibleFor(ent)), COLOR_SLATEGRAY)
+		mvData:AddDescriptionLine(TryT("marker_vision_visible_for_" .. markerVision.GetVisibleFor(ent)), COLOR_SLATEGRAY)
 	end)
 end
