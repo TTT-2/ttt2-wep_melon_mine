@@ -40,11 +40,7 @@ function ENT:Initialize()
 
 		self:SetUseType(SIMPLE_USE)
 
-		timer.Simple(0, function()
-			if not IsValid(self) then return end
-
-			markerVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
-		end)
+		markerVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
 	end
 
 	if CLIENT then
