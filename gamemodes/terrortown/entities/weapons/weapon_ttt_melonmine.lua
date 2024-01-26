@@ -127,12 +127,6 @@ if CLIENT then
 			bodygroup = {}
 		})
 
-		self:ApplyViewModelBoneMods("v_weapon.c4", {
-			scale = Vector(0.009, 0.009, 0.009),
-			pos = Vector(0, 0, 0),
-			angle = Angle(0, 0, 0)
-		})
-
 		self.BaseClass.Initialize(self)
 	end
 end
