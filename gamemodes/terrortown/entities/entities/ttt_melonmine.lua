@@ -6,11 +6,15 @@ end
 
 AccessorFunc(ENT, "dmg", "Dmg", FORCE_NUMBER)
 
-ENT.Type = "anim"
-ENT.PrintName = "weapon_melonmine_name"
+ENT.Base = "ttt_base_placeable"
+
+if CLIENT then
+	ENT.PrintName = "weapon_melonmine_name"
+	ENT.Icon = "vgui/ttt/icon_melonmine.png"
+end
+
 ENT.Spawnable = false
 ENT.AdminSpawnable = false
-ENT.Icon = "vgui/ttt/icon_melonmine.png"
 
 ENT.Projectile = true
 ENT.CanHavePrints = true
@@ -18,20 +22,18 @@ ENT.CanUseKey = true
 
 ENT.WarningSound = Sound("weapons/c4/c4_beep1.wav")
 
-function ENT:SetupDataTables()
-	self:NetworkVar("String", 2, "OwnerTeam")
-end
-
 function ENT:Initialize()
+	self:SetModel("models/props_junk/watermelon01.mdl")
+	self:SetColor(Color(255, 175, 0, 255))
+
+	self.BaseClass.Initialize(self)
+
+	self:SetHealth(100)
+
 	if SERVER then
-		self:SetModel("models/props_junk/watermelon01.mdl")
-		self:SetColor(Color(255, 175, 0, 255))
-		self:PhysicsInit(SOLID_VPHYSICS)
-		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+		self:WeldToSurface(true)
 
 		self.StartupDelay = CurTime() + 3
-		self:SetHealth(150)
-		self:WeldToGround(true)
 		self.fingerprints = {}
 
 		if not self:GetDmg() then
@@ -40,7 +42,7 @@ function ENT:Initialize()
 
 		self:SetUseType(SIMPLE_USE)
 
-		markerVision.RegisterEntity(self, self:GetOwner(), VISIBLE_FOR_TEAM)
+		markerVision.RegisterEntity(self, self:GetOriginator(), VISIBLE_FOR_TEAM)
 	end
 
 	if CLIENT then
@@ -65,7 +67,7 @@ function ENT:Initialize()
 end
 
 function ENT:UseOverride(activator)
-	if not IsValid(activator) or self:GetOwner() ~= activator then return end
+	if not IsValid(activator) or self:GetOriginator() ~= activator then return end
 
 	activator:GiveEquipmentWeapon("weapon_ttt_melonmine")
 
@@ -98,53 +100,7 @@ end
 
 ENT.StartupDelay = nil
 
-function ENT:WeldToGround(state)
-	if state then
-		-- getgroundentity does not work for non-players
-		-- so sweep ent downward to find what we're lying on
-		local ignore = player.GetAll()
-
-		table.insert(ignore, self)
-
-		local tr = util.TraceEntity({
-			start = self:GetPos(),
-			endpos = self:GetPos() - Vector(0,0,16),
-			filter = ignore,
-			mask = MASK_SOLID
-		}, self)
-
-		if tr.Hit and (IsValid(tr.Entity) or tr.HitWorld) then
-			local phys = self:GetPhysicsObject()
-			if IsValid(phys) then
-				if tr.HitWorld then
-					phys:EnableMotion(false)
-				else
-					self.OrigMass = phys:GetMass()
-					phys:SetMass(150)
-				end
-			end
-
-			-- only weld to objects we cannot pick up
-			local entphys = tr.Entity:GetPhysicsObject()
-			if IsValid(entphys) and entphys:GetMass() > CARRY_WEIGHT_LIMIT then
-				constraint.Weld(self, tr.Entity, 0, 0, 0, true)
-			end
-		end
-	else
-		constraint.RemoveConstraints(self, "Weld")
-
-		local phys = self:GetPhysicsObject()
-
-		if IsValid(phys) then
-			phys:EnableMotion(true)
-			phys:SetMass(self.OrigMass or 10)
-		end
-	end
-end
-
 if SERVER then
-	local zapsound = Sound("npc/assassin/ball_zap1.wav")
-
 	function ENT:Think()
 		if not self.StartupDelay or self.StartupDelay >= CurTime() then return end
 
@@ -154,7 +110,7 @@ if SERVER then
 			local ply = foundEnts[i]
 
 			if not IsValid(ply) or not ply:IsPlayer()
-				or ply:GetTeam() == self:GetOwner():GetTeam()
+				or ply:GetTeam() == self:GetOriginator():GetTeam()
 				or (isfunction(ply.IsGhost) and ply:IsGhost())
 			then continue end
 
@@ -200,7 +156,7 @@ if SERVER then
 			pos.z = pos.z + 30
 		end
 
-		local dmgOwner = self:GetOwner()
+		local dmgOwner = self:GetOriginator()
 		dmgOwner = IsValid(dmgOwner) and dmgOwner or self
 
 		local r_outer = 240
@@ -208,12 +164,11 @@ if SERVER then
 		-- explosion damage
 		util.BlastDamage(self, dmgOwner, pos, r_outer, self:GetDmg())
 
-		sound.Play( "explode_4", self:GetPos(), 130, 100 )
+		sound.Play("explode_4", self:GetPos(), 130, 100)
 
 		local effect = EffectData()
 		effect:SetStart(pos)
 		effect:SetOrigin(pos)
-		-- these don't have much effect with the default Explosion
 		effect:SetScale(r_outer)
 		effect:SetRadius(r_outer)
 		effect:SetMagnitude(self:GetDmg())
@@ -236,24 +191,29 @@ if SERVER then
 		self:Remove()
 	end
 
-	function ENT:OnTakeDamage(dmginfo)
-		self:TakePhysicsDamage(dmginfo)
+	local smallExplosion = 75
 
-		self:SetHealth(self:Health() - dmginfo:GetDamage())
+	function ENT:WasDestroyed(pos, dmgInfo)
+		local originator = self:GetOriginator()
+		local attacker = dmgInfo:GetAttacker()
 
-		if self:Health() <= 0 then
-			self:Remove()
+		local blastAttacker = (IsValid(attacker) and attacker:IsPlayer()) and attacker or originator
 
-			local effect = EffectData()
+		util.BlastDamage(self, blastAttacker or self, pos, smallExplosion, smallExplosion)
 
-			effect:SetOrigin(self:GetPos())
-			util.Effect("cball_explode", effect)
-			sound.Play(zapsound, self:GetPos())
+		local effect = EffectData()
+		effect:SetStart(pos)
+		effect:SetOrigin(pos)
+		effect:SetScale(smallExplosion)
+		effect:SetRadius(smallExplosion)
+		effect:SetMagnitude(smallExplosion)
 
-			if IsValid(self:GetOwner()) then
-				LANG.Msg(self:GetOwner(), "weapon_melonmine_destroyed", nil, MSG_MSTACK_WARN)
-			end
-		end
+		effect:SetOrigin(pos)
+		util.Effect("Explosion", effect, true, true)
+
+		LANG.Msg(originator, "weapon_melonmine_destroyed", nil, MSG_MSTACK_WARN)
+
+		return "Scorch"
 	end
 end
 
@@ -298,14 +258,6 @@ function ENT:SphereDamage(dmgOwner, center, radius)
 	end
 end
 
-function ENT:WallPlant(hitpos, forward)
-	if hitpos then
-		self:SetPos(hitpos)
-	end
-
-	self:SetAngles(forward:Angle() + Angle(-90, 0, 180))
-end
-
 if CLIENT then
 	local TryT = LANG.TryTranslation
 	local ParT = LANG.GetParamTranslation
@@ -318,7 +270,7 @@ if CLIENT then
 		local ent = tData:GetEntity()
 
 		if not client:IsTerror() or not IsValid(ent) or tData:GetEntityDistance() > 100 or ent:GetClass() ~= "ttt_melonmine"
-			or client:GetTeam() ~= ent:GetOwner():GetTeam()
+			or client:GetTeam() ~= ent:GetOriginator():GetTeam()
 		then return end
 
 		-- enable targetID rendering
@@ -328,7 +280,7 @@ if CLIENT then
 
 		tData:SetTitle(TryT(ent.PrintName))
 
-		if ent:GetOwner() == client then
+		if ent:GetOriginator() == client then
 			tData:SetKeyBinding("+use")
 			tData:SetSubtitle(ParT("target_pickup", {usekey = Key("+use", "USE")}))
 		else
@@ -343,8 +295,8 @@ if CLIENT then
 
 		if not client:IsTerror() or not IsValid(ent) or ent:GetClass() ~= "ttt_melonmine" then return end
 
-		local owner = ent:GetOwner()
-		local nick = IsValid(owner) and owner:Nick() or "---"
+		local originator = ent:GetOriginator()
+		local nick = IsValid(originator) and originator:Nick() or "---"
 
 		local distance = math.Round(util.HammerUnitsToMeters(mvData:GetEntityDistance()), 1)
 

@@ -34,8 +34,8 @@ SWEP.CanBuy = {ROLE_TRAITOR}
 SWEP.LimitedStock = true
 
 SWEP.UseHands = true
-SWEP.ShowViewModel = false
-SWEP.ShowWorldModel = false
+SWEP.ShowDefaultViewModel = false
+SWEP.ShowDefaultWorldModel = false
 
 SWEP.Spawnable = false
 SWEP.AdminSpawnable = false
@@ -56,39 +56,19 @@ SWEP.Primary.Ammo = "slam"
 SWEP.Cat = "Explosives"
 
 function SWEP:PrimaryAttack()
-	if not self:CanPrimaryAttack() then return end
+	if SERVER and self:CanPrimaryAttack() then
+		local melon = ents.Create("ttt_melonmine")
 
-	if SERVER then
-		local owner = self:GetOwner()
+		if melon:StickEntity(self:GetOwner(), Angle(-90, 0, 180)) then
+			melon.fingerprints = self.fingerprints
 
-		local trace = {}
-		trace.start = owner:GetShootPos()
-		trace.endpos = owner:GetShootPos() + owner:GetAimVector() * 100
-		trace.mask = MASK_NPCWORLDSTATIC
-		trace.filter = owner
-		local tr = util.TraceLine(trace)
+			self:Remove()
+		end
+	end
+end
 
-		if not tr.Hit then return end
-
-		local ent = ents.Create("ttt_melonmine")
-
-		if not IsValid(ent) then return end
-
-		ent:SetPos(tr.HitPos)
-		ent:SetOwner(owner)
-		ent:SetOwnerTeam(owner:GetTeam())
-		ent:Spawn()
-		ent:Activate()
-		ent.fingerprints = self.fingerprints
-		ent:WallPlant(tr.HitPos + tr.HitNormal, tr.HitNormal)
-
-		owner:EmitSound("weapons/c4/c4_plant.wav")
-		owner:SetAnimation(PLAYER_ATTACK1)
-
-		self:SendWeaponAnim(ACT_VM_DRAW)
-
-		owner:StripWeapon(self:GetClass())
-	else
+function SWEP:OnRemove()
+	if CLIENT and IsValid(self:GetOwner()) and self:GetOwner() == LocalPlayer() and self:GetOwner():IsTerror() then
 		RunConsoleCommand("lastinv")
 	end
 end
