@@ -25,11 +25,9 @@ end
 function ENT:Initialize()
 	if SERVER then
 		self:SetModel("models/props_junk/watermelon01.mdl")
-		self:SetColor(Color(150, 100, 0, 255))
+		self:SetColor(Color(255, 175, 0, 255))
 		self:PhysicsInit(SOLID_VPHYSICS)
-		self:DrawShadow(false)
 		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
-		self:SetTrigger(true)
 
 		self.StartupDelay = CurTime() + 3
 		self:SetHealth(150)
@@ -116,25 +114,24 @@ function ENT:WeldToGround(state)
 			start = self:GetPos(),
 			endpos = self:GetPos() - Vector(0,0,16),
 			filter = ignore,
-			mask = MASK_SOLID},
-			self
-		)
+			mask = MASK_SOLID
+		}, self)
 
 		if tr.Hit and (IsValid(tr.Entity) or tr.HitWorld) then
 			local phys = self:GetPhysicsObject()
 			if IsValid(phys) then
-			if tr.HitWorld then
-				phys:EnableMotion(false)
-			else
-				self.OrigMass = phys:GetMass()
-				phys:SetMass(150)
-			end
+				if tr.HitWorld then
+					phys:EnableMotion(false)
+				else
+					self.OrigMass = phys:GetMass()
+					phys:SetMass(150)
+				end
 			end
 
 			-- only weld to objects we cannot pick up
 			local entphys = tr.Entity:GetPhysicsObject()
 			if IsValid(entphys) and entphys:GetMass() > CARRY_WEIGHT_LIMIT then
-			constraint.Weld(self, tr.Entity, 0, 0, 0, true)
+				constraint.Weld(self, tr.Entity, 0, 0, 0, true)
 			end
 		end
 	else
@@ -244,8 +241,6 @@ if SERVER then
 	end
 
 	function ENT:OnTakeDamage(dmginfo)
-		if dmginfo:GetAttacker() == self:GetOwner() then return end
-
 		self:TakePhysicsDamage(dmginfo)
 
 		self:SetHealth(self:Health() - dmginfo:GetDamage())
