@@ -14,6 +14,7 @@ ENT.Icon = "vgui/ttt/icon_melonmine.png"
 
 ENT.Projectile = true
 ENT.CanHavePrints = true
+ENT.CanUseKey = true
 
 ENT.WarningSound = Sound("weapons/c4/c4_beep1.wav")
 
@@ -38,6 +39,8 @@ function ENT:Initialize()
 		if not self:GetDmg() then
 			self:SetDmg(200)
 		end
+
+		self:SetUseType(SIMPLE_USE)
 
 		timer.Simple(0, function()
 			if not IsValid(self) then return end
@@ -65,6 +68,14 @@ function ENT:Initialize()
 			end
 		end)
 	end
+end
+
+function ENT:UseOverride(activator)
+	if not IsValid(activator) or self:GetOwner() ~= activator then return end
+
+	activator:GiveEquipmentWeapon("weapon_ttt_melonmine")
+
+	self:Remove()
 end
 
 if CLIENT then
