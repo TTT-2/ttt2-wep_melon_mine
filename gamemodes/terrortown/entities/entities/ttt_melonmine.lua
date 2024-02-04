@@ -42,7 +42,10 @@ function ENT:Initialize()
 
 		self:SetUseType(SIMPLE_USE)
 
-		markerVision.RegisterEntity(self, self:GetOriginator(), VISIBLE_FOR_TEAM)
+		local mvObject = self:AddMarkerVision("melon_owner")
+		mvObject:SetOwner(self:GetOriginator())
+		mvObject:SetVisibleFor(VISIBLE_FOR_TEAM)
+		mvObject:SyncToClients()
 	end
 
 	if CLIENT then
@@ -101,6 +104,10 @@ end
 ENT.StartupDelay = nil
 
 if SERVER then
+	function ENT:OnRemoe()
+		self:RemoveMarkerVision("melon_owner")
+	end
+
 	function ENT:Think()
 		if not self.StartupDelay or self.StartupDelay >= CurTime() then return end
 
@@ -185,8 +192,6 @@ if SERVER then
 		phexp:SetKeyValue("spawnflags", "19")
 		phexp:Spawn()
 		phexp:Fire("Explode", "", 0)
-
-		markerVision.RemoveEntity(self)
 
 		self:Remove()
 	end
@@ -292,8 +297,9 @@ if CLIENT then
 	hook.Add("TTT2RenderMarkerVisionInfo", "HUDDrawMarkerVisionMelonMine", function(mvData)
 		local client = LocalPlayer()
 		local ent = mvData:GetEntity()
+		local mvObject = mvData:GetMarkerVisionObject()
 
-		if not client:IsTerror() or not IsValid(ent) or ent:GetClass() ~= "ttt_melonmine" then return end
+		if not client:IsTerror() or not mvObject:IsObjectFor(ent, "melon_owner") then return end
 
 		local originator = ent:GetOriginator()
 		local nick = IsValid(originator) and originator:Nick() or "---"
@@ -308,6 +314,6 @@ if CLIENT then
 		mvData:AddDescriptionLine(ParT("marker_vision_owner", {owner = nick}))
 		mvData:AddDescriptionLine(ParT("marker_vision_distance", {distance = distance}))
 
-		mvData:AddDescriptionLine(TryT("marker_vision_visible_for_" .. markerVision.GetVisibleFor(ent)), COLOR_SLATEGRAY)
+		mvData:AddDescriptionLine(TryT(mvObject:GetVisibleForTranslationKey()), COLOR_SLATEGRAY)
 	end)
 end
