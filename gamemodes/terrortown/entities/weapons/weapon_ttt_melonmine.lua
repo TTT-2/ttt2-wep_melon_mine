@@ -66,17 +66,6 @@ function SWEP:PrimaryAttack()
     end
 end
 
-function SWEP:OnRemove()
-    if
-        CLIENT
-        and IsValid(self:GetOwner())
-        and self:GetOwner() == LocalPlayer()
-        and self:GetOwner():IsTerror()
-    then
-        RunConsoleCommand("lastinv")
-    end
-end
-
 if CLIENT then
     function SWEP:Initialize()
         self:AddTTT2HUDHelp("melonmine_help_pri")
