@@ -55,6 +55,8 @@ SWEP.Primary.Ammo = "slam"
 SWEP.Cat = "Explosives"
 
 function SWEP:PrimaryAttack()
+    self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
+
     if SERVER and self:CanPrimaryAttack() then
         local melon = ents.Create("ttt_melonmine")
 
