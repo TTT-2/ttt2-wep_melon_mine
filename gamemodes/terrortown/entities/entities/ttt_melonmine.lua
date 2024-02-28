@@ -171,7 +171,7 @@ if SERVER then
         local dmgOwner = self:GetOriginator()
         dmgOwner = IsValid(dmgOwner) and dmgOwner or self
 
-        local r_inner = 240
+        local r_inner = 200
         local r_outer = 240
 
         -- damage through walls
