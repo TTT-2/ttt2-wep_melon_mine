@@ -19,7 +19,7 @@ ENT.AdminSpawnable = false
 ENT.CanUseKey = true
 ENT.pickupWeaponClass = "weapon_ttt_melonmine"
 
-ENT.soundWarning = Sound("weapons/c4/c4_beep1.wav")
+local soundWarning = Sound("weapons/c4/c4_beep1.wav")
 
 function ENT:Initialize()
     self:SetModel("models/props_junk/watermelon01.mdl")
