@@ -171,7 +171,11 @@ if SERVER then
         local dmgOwner = self:GetOriginator()
         dmgOwner = IsValid(dmgOwner) and dmgOwner or self
 
+        local r_inner = 240
         local r_outer = 240
+
+        -- damage through walls
+        self:SphereDamage(dmgOwner, pos, r_inner)
 
         -- explosion damage
         util.BlastDamage(self, dmgOwner, pos, r_outer, self:GetDmg())
@@ -264,7 +268,7 @@ function ENT:SphereDamage(dmgOwner, center, radius)
             local dmginfo = DamageInfo()
             dmginfo:SetDamage(dmg)
             dmginfo:SetAttacker(dmgOwner)
-            dmginfo:SetInflictor(self)
+            dmginfo:SetInflictor(ents.Create("weapon_ttt_melonmine"))
             dmginfo:SetDamageType(DMG_BLAST)
             dmginfo:SetDamageForce(center - ply:GetPos())
             dmginfo:SetDamagePosition(ply:GetPos())
