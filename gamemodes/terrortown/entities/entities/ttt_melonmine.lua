@@ -101,7 +101,7 @@ end
 ENT.StartupDelay = nil
 
 if SERVER then
-    function ENT:OnRemoe()
+    function ENT:OnRemove()
         self:RemoveMarkerVision("melon_owner")
     end
 
